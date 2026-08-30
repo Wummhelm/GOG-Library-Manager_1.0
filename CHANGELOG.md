@@ -2,6 +2,16 @@
 
 All notable changes to GOG Library Manager are documented here.
 
+## 1.1 - 2026-08-30
+
+### Added
+
+- Automatic Linux distribution-family installer
+- Debian/Ubuntu installation helper
+- Fedora installation helper
+- README instructions for Arch-based, Debian/Ubuntu-based, Fedora and openSUSE systems
+- Wayland and X11 launcher compatibility
+
 ## 1.0 - 2026-08-30
 
 First stable GitHub release.

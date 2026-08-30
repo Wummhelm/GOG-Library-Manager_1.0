@@ -1,44 +1,19 @@
 # Dependencies
 
-## Runtime
+## Arch Linux
+`sudo pacman -S --needed python gtk4 python-gobject python-cairo python-pillow python-requests`
 
-| Component | Purpose | Arch Linux package |
-|---|---|---|
-| Python 3 | Application runtime | `python` |
-| GTK 4 | Native graphical interface | `gtk4` |
-| PyGObject | Python bindings for GTK/GIO/GLib | `python-gobject` |
-| PyCairo | Animated background drawing | `python-cairo` |
-| GdkPixbuf 2 | Image loading/scaling used through GTK bindings | provided through GTK/GdkPixbuf packages |
-| Pillow | Image conversion and validation | `python-pillow` |
-| requests | Twitch/IGDB HTTPS requests | `python-requests` |
+## Debian / Ubuntu
+`sudo apt install python3 python3-gi python3-gi-cairo gir1.2-gtk-4.0 python3-pil python3-requests`
 
-Recommended Arch Linux command:
+## Fedora
+`sudo dnf install python3 python3-gobject gtk4 python3-cairo python3-pillow python3-requests`
 
-```bash
-sudo pacman -S --needed \
-  python gtk4 python-gobject python-cairo python-pillow python-requests
-```
+## openSUSE
+Core GTK/PyGObject runtime:
+`sudo zypper install python3-gobject python3-gobject-Gdk typelib-1_0-Gtk-4_0 libgtk-4-1`
 
-## Optional service
+See README.md for Pillow/Requests notes.
 
-IGDB features require user-provided Twitch application credentials:
-
-- Client ID
-- Client Secret
-
-The credentials are used to obtain an OAuth token from Twitch and to query the IGDB API.
-
-The application can still browse the local GOG directory without IGDB credentials, but cover/metadata functions that depend on IGDB will not be available.
-
-## Python package installation
-
-`requirements.txt` contains:
-
-```text
-requests>=2.31,<3
-Pillow>=10,<13
-pycairo>=1.25
-PyGObject>=3.48
-```
-
-For GTK applications on Linux, distribution packages are preferred over a pure `pip` environment because GTK itself and the introspection libraries are native system components.
+## Display server
+GTK selects Wayland or X11 automatically.

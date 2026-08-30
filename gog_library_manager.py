@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""GOG Library Manager 1.0
+"""GOG Library Manager 1.1
 
 GTK4 application for managing a local GOG game library, cover artwork,
 and optional IGDB metadata.
@@ -31,8 +31,8 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gtk, Gdk, GdkPixbuf, Gio, GLib
 
 
-VERSION = "1.0"
-APP_ID = "de.goglibrarymanager.app.v1"
+VERSION = "1.1"
+APP_ID = "de.goglibrarymanager.app.v1_1"
 COVER_FILENAME = "cover.jpg"
 
 CONFIG_DIR = Path.home() / ".config" / "gog-library-manager"
@@ -314,7 +314,7 @@ def pixbuf_from_bytes(data, width, height):
 
 TRANSLATIONS = {
     "de": {
-        "app_title": "GOG Library Manager – v1.0",
+        "app_title": "GOG Library Manager – v1.1",
         "missing_covers": "🔎 Fehlende Cover suchen",
         "reload": "↻ Sammlung neu laden",
         "search_placeholder": "Spiele suchen …",
@@ -457,7 +457,7 @@ TRANSLATIONS = {
         "bottom_sort_za": "Z–A",
     },
     "en": {
-        "app_title": "GOG Library Manager – v1.0",
+        "app_title": "GOG Library Manager – v1.1",
         "missing_covers": "🔎 Find missing covers",
         "reload": "↻ Reload library",
         "search_placeholder": "Search games …",

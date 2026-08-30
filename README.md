@@ -1,8 +1,8 @@
-# GOG Library Manager 1.0
+# GOG Library Manager 1.1
 
 A native **GTK4 / Wayland** desktop application for browsing a local GOG game collection, managing cover artwork, and enriching the library with optional **IGDB metadata**.
 
-Version **1.0** is the first stable release of the project.
+Version **1.1** expands Linux distribution support while keeping the v1.0 feature set.
 
 ## Highlights
 
@@ -29,11 +29,23 @@ For GitHub, add one as `docs/screenshot.png` and replace this section with:
 
 ![GOG Library Manager](docs/screenshot.png)
 
+
+
+## Linux support
+
+GOG Library Manager is a GTK4 application. Version 1.1 adds installation instructions and helper scripts for several Linux distribution families.
+
+Supported installation paths:
+
+- **Arch Linux** and Arch-based distributions such as Manjaro, EndeavourOS and CachyOS
+- **Debian / Ubuntu** and Debian-based distributions such as Linux Mint and Pop!_OS
+- **Fedora**
+- **openSUSE** with manual installation instructions
+
+The launcher no longer forces Wayland. GTK can automatically use **Wayland or X11** according to the active desktop session.
+>>>>>>> 42bc8dc (Release 1.1 - add multi-distribution Linux support)
+
 ## Requirements
-
-The recommended platform is an Arch-based Linux distribution with a Wayland session.
-
-Runtime dependencies:
 
 - Python 3
 - GTK 4
@@ -43,63 +55,87 @@ Runtime dependencies:
 - Pillow
 - requests
 
-### Arch Linux
-
-The easiest method is:
-
-```bash
-./install-arch.sh
-```
-
-Or install the packages manually:
-
-```bash
-sudo pacman -S --needed \
-  python \
-  gtk4 \
-  python-gobject \
-  python-cairo \
-  python-pillow \
-  python-requests
-```
-
-You can verify the runtime before launching:
-
-```bash
-python3 check_dependencies.py
-```
-
-### Other Linux distributions
-
-Install the equivalent GTK4, PyGObject, Cairo, Pillow and requests packages supplied by your distribution.
-
-`requirements.txt` is included for users who intentionally install Python packages with `pip`, but **system packages are recommended for GTK/PyGObject** because GTK itself is a native system dependency.
+System packages are recommended for GTK/PyGObject.
 
 ## Installation
 
 Clone the repository:
 
 ```bash
-git clone https://github.com/Wummhelm/gog-library-manager.git
-cd gog-library-manager
+git clone https://github.com/Wummhelm/GOG-Library-Manager_1.0.git
+cd GOG-Library-Manager_1.0
+chmod +x GOG-Library-Manager.sh install-*.sh
 ```
 
-Make sure the launcher is executable:
+### Automatic installer
+
+On Arch-based, Debian/Ubuntu-based and Fedora systems:
 
 ```bash
-chmod +x GOG-Library-Manager.sh
+./install-linux.sh
+./GOG-Library-Manager.sh
 ```
 
-Start the application:
+### Arch Linux / Manjaro / EndeavourOS / CachyOS
+
+```bash
+./install-arch.sh
+./GOG-Library-Manager.sh
+```
+
+Manual command:
+
+```bash
+sudo pacman -S --needed python gtk4 python-gobject python-cairo python-pillow python-requests
+```
+
+### Debian / Ubuntu / Linux Mint / Pop!_OS
+
+```bash
+./install-debian-ubuntu.sh
+./GOG-Library-Manager.sh
+```
+
+Manual command:
+
+```bash
+sudo apt update
+sudo apt install -y python3 python3-gi python3-gi-cairo gir1.2-gtk-4.0 python3-pil python3-requests
+```
+
+### Fedora
+
+```bash
+./install-fedora.sh
+./GOG-Library-Manager.sh
+```
+
+Manual command:
+
+```bash
+sudo dnf install -y python3 python3-gobject gtk4 python3-cairo python3-pillow python3-requests
+```
+
+### openSUSE
+
+Install the GTK4/PyGObject runtime:
+
+```bash
+sudo zypper install python3-gobject python3-gobject-Gdk typelib-1_0-Gtk-4_0 libgtk-4-1
+```
+
+Pillow and Requests package names/availability can differ between openSUSE releases, so install the matching packages supplied by your release. On Tumbleweed, Pillow is available through the distribution package repositories.
+
+Then run:
 
 ```bash
 ./GOG-Library-Manager.sh
 ```
 
-You can also run the Python file directly:
+### Check dependencies
 
 ```bash
-python3 gog_library_manager.py
+python3 check_dependencies.py
 ```
 
 ## First start
@@ -170,17 +206,9 @@ The game directories themselves are therefore not used as the permanent cover st
 - **Sort menu:** sort by name, year, IGDB rating or completeness
 - **Cover size slider:** change the cover grid size
 
-## Wayland
+## Wayland and X11
 
-The supplied launcher forces:
-
-```bash
-GDK_BACKEND=wayland
-```
-
-This matches the platform the application was developed for.
-
-If you deliberately want GTK to choose the backend automatically, remove this line from `GOG-Library-Manager.sh`.
+The launcher does not force a display backend. GTK automatically selects Wayland or X11 according to the current desktop session.
 
 ## Updating
 
