@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+
+# IDE/editor
+.idea/
+.vscode/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local project artifacts
+dist/
+build/
+*.zip
+*.tar.gz
+
+# Never commit credentials or local runtime state
+config.json
+igdb_mappings.json
+igdb_metadata.json
+igdb_sync_state.json
+
+# Local screenshots/covers unless explicitly curated
+covers/

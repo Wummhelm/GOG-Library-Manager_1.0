@@ -1,0 +1,4 @@
+requests>=2.31,<3
+Pillow>=10,<13
+pycairo>=1.25
+PyGObject>=3.48

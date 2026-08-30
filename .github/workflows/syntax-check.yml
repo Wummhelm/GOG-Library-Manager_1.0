@@ -1,0 +1,29 @@
+name: Syntax check
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  python-syntax:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Compile Python source
+        run: python -m py_compile gog_library_manager.py
+
+      - name: Check shell syntax
+        run: |
+          bash -n GOG-Library-Manager.sh
+          bash -n install-arch.sh
