@@ -1,16 +1,19 @@
 # Changelog
 
-All notable changes to GOG Library Manager are documented here.
-
-## 1.1 - 2026-08-30
+## 1.2 - 2026-08-30
 
 ### Added
 
-- Automatic Linux distribution-family installer
-- Debian/Ubuntu installation helper
-- Fedora installation helper
-- README instructions for Arch-based, Debian/Ubuntu-based, Fedora and openSUSE systems
-- Wayland and X11 launcher compatibility
+- Automatic startup mount check for the configured GOG directory
+- `/etc/fstab` mount-point discovery, including parent mount points
+- Automatic `mount` attempt with optional PolicyKit (`pkexec`) fallback
+- Clear GTK error when the configured GOG filesystem cannot be mounted
+- NFS client dependencies in Arch, Debian/Ubuntu and Fedora installers
+- Multi-distribution installation helpers for Arch-based, Debian/Ubuntu-based and Fedora systems
+- README installation and NFS mount documentation
+- Wayland and X11 automatic GTK backend selection
+
+All notable changes to GOG Library Manager are documented here.
 
 ## 1.0 - 2026-08-30
 

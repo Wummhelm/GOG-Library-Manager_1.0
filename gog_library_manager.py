@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""GOG Library Manager 1.1
+"""GOG Library Manager 1.2
 
 GTK4 application for managing a local GOG game library, cover artwork,
 and optional IGDB metadata.
@@ -13,6 +13,7 @@ import os
 import re
 import sys
 import shutil
+import subprocess
 import time
 import threading
 import urllib.parse
@@ -31,8 +32,8 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gtk, Gdk, GdkPixbuf, Gio, GLib
 
 
-VERSION = "1.1"
-APP_ID = "de.goglibrarymanager.app.v1_1"
+VERSION = "1.2"
+APP_ID = "de.goglibrarymanager.app.v1_2"
 COVER_FILENAME = "cover.jpg"
 
 CONFIG_DIR = Path.home() / ".config" / "gog-library-manager"
@@ -70,6 +71,223 @@ def load_config():
             return json.load(f)
     except Exception:
         return {}
+
+
+def _decode_fstab_path(value):
+    """Decode the escape sequences normally used in /etc/fstab paths."""
+    replacements = {
+        r"\040": " ",
+        r"\011": "\t",
+        r"\043": "#",
+        r"\134": "\\",
+    }
+    for escaped, plain in replacements.items():
+        value = value.replace(escaped, plain)
+    return value
+
+
+def find_fstab_mountpoint(gog_dir):
+    """Return the most specific fstab mount point containing *gog_dir*."""
+    target = Path(gog_dir).expanduser().absolute()
+    candidates = []
+
+    try:
+        lines = Path("/etc/fstab").read_text(
+            encoding="utf-8",
+            errors="replace"
+        ).splitlines()
+    except OSError:
+        return None
+
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+
+        fields = line.split()
+        if len(fields) < 2:
+            continue
+
+        mount_field = _decode_fstab_path(fields[1])
+        mountpoint = Path(mount_field).expanduser()
+        if not mountpoint.is_absolute() or str(mountpoint) == "/":
+            continue
+
+        mountpoint = mountpoint.absolute()
+        if target == mountpoint or mountpoint in target.parents:
+            candidates.append(mountpoint)
+
+    if not candidates:
+        return None
+
+    return max(candidates, key=lambda path: len(path.parts))
+
+
+def is_mountpoint_mounted(mountpoint):
+    """Check whether an exact mount point is currently mounted."""
+    mountpoint = Path(mountpoint).expanduser().absolute()
+
+    findmnt = shutil.which("findmnt")
+    if findmnt:
+        try:
+            result = subprocess.run(
+                [findmnt, "--mountpoint", str(mountpoint), "--noheadings"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+                check=False,
+            )
+            return result.returncode == 0
+        except (OSError, subprocess.SubprocessError):
+            pass
+
+    return os.path.ismount(mountpoint)
+
+
+def mounted_filesystem_for_path(path):
+    """Return (mountpoint, fstype) for an existing path, if findmnt can resolve it."""
+    findmnt = shutil.which("findmnt")
+    if not findmnt:
+        return None, None
+
+    try:
+        result = subprocess.run(
+            [findmnt, "--target", str(path), "--noheadings", "--output", "TARGET,FSTYPE"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None, None
+
+    if result.returncode != 0 or not result.stdout.strip():
+        return None, None
+
+    fields = result.stdout.strip().split(None, 1)
+    mountpoint = Path(fields[0]).absolute() if fields else None
+    fstype = fields[1].strip() if len(fields) > 1 else ""
+    return mountpoint, fstype
+
+
+def _run_mount_command(mountpoint, use_pkexec=False):
+    mount = shutil.which("mount")
+    if not mount:
+        return False, "Das Programm 'mount' wurde nicht gefunden."
+
+    command = [mount, str(mountpoint)]
+    if use_pkexec:
+        pkexec = shutil.which("pkexec")
+        if not pkexec:
+            return False, "pkexec ist nicht installiert."
+        command = [pkexec] + command
+
+    try:
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=45,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        return False, "Zeitüberschreitung beim Einhängen des GOG-Laufwerks."
+    except OSError as exc:
+        return False, str(exc)
+
+    if result.returncode == 0:
+        return True, ""
+
+    detail = (result.stderr or result.stdout or "").strip()
+    if not detail:
+        detail = f"mount wurde mit Status {result.returncode} beendet."
+    return False, detail
+
+
+def ensure_gog_mount(gog_dir):
+    """Ensure the configured GOG directory's fstab mount is available.
+
+    The application never stores an NFS server address itself. Instead it uses
+    an existing /etc/fstab entry for the configured directory (or one of its
+    parents), first attempting a normal user mount and then, when available,
+    a PolicyKit-assisted mount.
+    """
+    target = Path(gog_dir).expanduser().absolute()
+
+    if target.exists():
+        active_mount, fstype = mounted_filesystem_for_path(target)
+        if active_mount and str(active_mount) != "/":
+            return {
+                "ok": target.is_dir(),
+                "attempted": False,
+                "mountpoint": active_mount,
+                "fstype": fstype,
+                "message": "",
+            }
+
+    mountpoint = find_fstab_mountpoint(target)
+
+    if mountpoint and is_mountpoint_mounted(mountpoint):
+        return {
+            "ok": target.is_dir(),
+            "attempted": False,
+            "mountpoint": mountpoint,
+            "fstype": "",
+            "message": "" if target.is_dir() else f"Der GOG-Ordner {target} ist nach dem Mounten nicht erreichbar.",
+        }
+
+    if not mountpoint:
+        if target.is_dir():
+            # A normal local directory needs no mount operation.
+            return {
+                "ok": True,
+                "attempted": False,
+                "mountpoint": None,
+                "fstype": "",
+                "message": "",
+            }
+        return {
+            "ok": False,
+            "attempted": False,
+            "mountpoint": None,
+            "fstype": "",
+            "message": (
+                f"Für {target} wurde kein passender Eintrag in /etc/fstab gefunden. "
+                "Lege den Netzwerk-Mount dort an oder wähle einen anderen GOG-Ordner."
+            ),
+        }
+
+    success, detail = _run_mount_command(mountpoint)
+
+    if not success and shutil.which("pkexec") and (
+        os.environ.get("WAYLAND_DISPLAY") or os.environ.get("DISPLAY")
+    ):
+        success, pk_detail = _run_mount_command(mountpoint, use_pkexec=True)
+        if not success:
+            detail = pk_detail or detail
+
+    mounted = success and is_mountpoint_mounted(mountpoint)
+    available = mounted and target.is_dir()
+
+    if available:
+        return {
+            "ok": True,
+            "attempted": True,
+            "mountpoint": mountpoint,
+            "fstype": "",
+            "message": "",
+        }
+
+    if success and not target.is_dir():
+        detail = f"{mountpoint} wurde eingehängt, aber der GOG-Ordner {target} wurde nicht gefunden."
+
+    return {
+        "ok": False,
+        "attempted": True,
+        "mountpoint": mountpoint,
+        "fstype": "",
+        "message": detail,
+    }
 
 
 def save_config(client_id, client_secret, gog_dir=None, cover_size=None, language=None, theme=None):
@@ -314,7 +532,7 @@ def pixbuf_from_bytes(data, width, height):
 
 TRANSLATIONS = {
     "de": {
-        "app_title": "GOG Library Manager – v1.1",
+        "app_title": "GOG Library Manager – v1.2",
         "missing_covers": "🔎 Fehlende Cover suchen",
         "reload": "↻ Sammlung neu laden",
         "search_placeholder": "Spiele suchen …",
@@ -457,7 +675,7 @@ TRANSLATIONS = {
         "bottom_sort_za": "Z–A",
     },
     "en": {
-        "app_title": "GOG Library Manager – v1.1",
+        "app_title": "GOG Library Manager – v1.2",
         "missing_covers": "🔎 Find missing covers",
         "reload": "↻ Reload library",
         "search_placeholder": "Search games …",
@@ -607,17 +825,18 @@ TRANSLATIONS = {
 # ============================================================
 
 class GOGCoverWindow(Gtk.ApplicationWindow):
-    def __init__(self, application, gog_dir=None):
+    def __init__(self, application, gog_dir=None, mount_error=None):
         super().__init__(application=application)
 
         self.set_default_size(1420, 860)
         self.add_css_class("gaming-window")
 
         self.gog_dir = (
-            Path(gog_dir).expanduser().resolve()
+            Path(gog_dir).expanduser().absolute()
             if gog_dir
             else None
         )
+        self.mount_error = mount_error
 
         config = load_config()
         self.igdb_mappings = load_igdb_mappings()
@@ -686,9 +905,13 @@ class GOGCoverWindow(Gtk.ApplicationWindow):
         self._install_css()
         self._start_background_animation()
 
-        if self.gog_dir:
+        if self.gog_dir and not self.mount_error:
             self.reload_collection()
             GLib.idle_add(self.start_startup_sync)
+        elif self.mount_error:
+            self.status_label.set_text(
+                "❌ GOG-Laufwerk konnte nicht eingehängt werden."
+            )
         else:
             self.status_label.set_text(
                 self.tr("choose_folder_first")
@@ -5383,22 +5606,43 @@ class GOGCoverApplication(Gtk.Application):
         saved = config.get("gog_dir", "")
 
         gog_dir = None
+        mount_error = None
 
         if saved:
-            candidate = Path(
-                saved
-            ).expanduser()
+            candidate = Path(saved).expanduser().absolute()
+            mount_result = ensure_gog_mount(candidate)
+            gog_dir = candidate
 
-            if candidate.is_dir():
-                gog_dir = candidate.resolve()
+            if not mount_result.get("ok"):
+                mountpoint = mount_result.get("mountpoint")
+                mount_text = (
+                    f"\n\nMountpunkt: {mountpoint}"
+                    if mountpoint
+                    else ""
+                )
+                mount_error = (
+                    "Der konfigurierte GOG-Ordner ist momentan nicht erreichbar. "
+                    "Der Library Manager hat versucht, den passenden System-Mount "
+                    "automatisch zu aktivieren."
+                    f"{mount_text}\n\n{mount_result.get('message', '')}"
+                )
 
         window = GOGCoverWindow(
             self,
-            gog_dir=gog_dir
+            gog_dir=gog_dir,
+            mount_error=mount_error
         )
         window.present()
 
-        if not gog_dir:
+        if mount_error:
+            def show_mount_error():
+                window.show_error(
+                    "GOG-Laufwerk nicht verfügbar",
+                    mount_error
+                )
+                return False
+            GLib.idle_add(show_mount_error)
+        elif not saved:
             GLib.idle_add(
                 window.show_first_run_setup
             )
