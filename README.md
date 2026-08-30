@@ -26,9 +26,8 @@ Version **1.0** is the first stable release of the project.
 A screenshot is intentionally not included in the repository template yet.  
 For GitHub, add one as `docs/screenshot.png` and replace this section with:
 
-```markdown
+
 ![GOG Library Manager](docs/screenshot.png)
-```
 
 ## Requirements
 
